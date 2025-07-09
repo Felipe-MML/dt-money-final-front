@@ -13,7 +13,8 @@ export type ITotal = {
   total: number;
 };
 
-export interface ITransactionResponse {
+// ATUALIZADO
+export interface ITransactionResponse extends ITotal {
   transactions: ITransaction[];
   totalCount: number;
 }

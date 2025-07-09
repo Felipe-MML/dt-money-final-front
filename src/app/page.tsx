@@ -5,17 +5,18 @@ import { FormModal } from "@/components/FormModal";
 import { DeleteModal } from "@/components/deleteModal";
 import { EditModal } from "@/components/EditModal";
 import { Header } from "@/components/Header";
+import { Spinner } from "@/components/Spinner";
 import { Table } from "@/components/Table";
 import { useTransaction } from "@/hooks/transactions";
-import { ITotal, ITransaction } from "@/types/transaction";
-import { useMemo, useState } from "react";
+import { ITransaction, ITotal } from "@/types/transaction";
+import { useState } from "react";
 import { ToastContainer } from "react-toastify";
-import { uptadeTransaction } from "@/services/transactions";
+import "react-toastify/dist/ReactToastify.css";
 
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModelOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const { mutateAsync: addTransaction } = useTransaction.Create();
   const { mutate: deleteTransaction } = useTransaction.Delete();
@@ -32,13 +33,20 @@ export default function Home() {
   const itemsPerPage = 4;
   const skip = (currentPage - 1) * itemsPerPage;
 
-  const { data: transactionData, isLoading } = useTransaction.ListAll(
-    skip,
-    itemsPerPage
-  );
+  const {
+    data: transactionData,
+    isLoading,
+    isFetching,
+  } = useTransaction.ListAll(skip, itemsPerPage);
 
   const transactions = transactionData?.transactions ?? [];
   const totalCount = transactionData?.totalCount ?? 0;
+
+  const totalTransactions: ITotal = {
+    totalIncome: transactionData?.totalIncome ?? 0,
+    totalOutcome: transactionData?.totalOutcome ?? 0,
+    total: transactionData?.total ?? 0,
+  };
 
   const openModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
@@ -52,42 +60,39 @@ export default function Home() {
 
   const openEditModal = (transaction: ITransaction) => {
     setTransactionToEdit(transaction);
-    setIsEditModelOpen(true);
+    setIsEditModalOpen(true);
   };
 
-  const closeEditModal = () => setIsEditModelOpen(false);
+  const closeEditModal = () => setIsEditModalOpen(false);
 
-  const handleAddModal = (newTransaction: ITransaction) => {
-    addTransaction(newTransaction);
+  // MELHORIA: Ação agora espera a conclusão antes de fechar o modal
+  const handleAddModal = async (newTransaction: ITransaction) => {
+    await addTransaction(newTransaction);
+    handleCloseModal();
   };
 
   const handleDeleteModal = (id: string | undefined) => {
     deleteTransaction(id);
+    closeDeleteModal();
   };
 
-  const totalTransactions: ITotal = useMemo(() => {
-    if (!transactions || transactions.length === 0) {
-      return { totalIncome: 0, totalOutcome: 0, total: 0 };
-    }
+  const handleEditModal = async (id: string, data: Partial<ITransaction>) => {
+    await updateTransaction({ id, data });
+    closeEditModal();
+  };
 
-    return transactions.reduce(
-      (acc: ITotal, { type, price }: ITransaction) => {
-        if (type === "INCOME") {
-          acc.totalIncome += price;
-          acc.total += price;
-        } else if (type === "OUTCOME") {
-          acc.totalOutcome += price;
-          acc.total -= price;
-        }
-        return acc;
-      },
-      { totalIncome: 0, totalOutcome: 0, total: 0 }
+  // MELHORIA: Exibe um spinner centralizado durante o carregamento inicial
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Spinner />
+      </div>
     );
-  }, [transactions]);
-  if (isLoading) return <div>Loading...</div>;
+  }
+
   return (
     <div>
-      <ToastContainer />
+      <ToastContainer autoClose={3000} hideProgressBar />
       <Header openModal={openModal} />
       <BodyContainer>
         <CardContainer totals={totalTransactions} />
@@ -106,12 +111,9 @@ export default function Home() {
         {isEditModalOpen && transactionToEdit && (
           <EditModal
             closeModal={closeEditModal}
-            formTitle="Adicionar Transação"
+            formTitle="Editar Transação"
             transaction={transactionToEdit}
-            onSubmit={(id, data) => {
-              updateTransaction({ id, data });
-              closeEditModal();
-            }}
+            onSubmit={handleEditModal}
           />
         )}
         {isModalOpen && (
@@ -122,12 +124,17 @@ export default function Home() {
           />
         )}
         <div
-          style={{ display: "flex", justifyContent: "center", marginTop: 20 }}
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            marginTop: 20,
+            alignItems: "center",
+          }}
         >
           <button
             onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-            className="bg-purple-500 hover:bg-purple-700 active:bg-purple-800 rounded-2xl p-1"
+            disabled={currentPage === 1 || isFetching} // Desabilitado durante a busca
+            className="bg-purple-500 hover:bg-purple-700 active:bg-purple-800 rounded-md p-2 text-white disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Anterior
           </button>
@@ -138,8 +145,10 @@ export default function Home() {
                 prev < Math.ceil(totalCount / itemsPerPage) ? prev + 1 : prev
               )
             }
-            disabled={currentPage >= Math.ceil(totalCount / itemsPerPage)}
-            className="bg-purple-500 hover:bg-purple-700 active:bg-purple-800 rounded-2xl p-1"
+            disabled={
+              currentPage >= Math.ceil(totalCount / itemsPerPage) || isFetching
+            } // Desabilitado durante a busca
+            className="bg-purple-500 hover:bg-purple-700 active:bg-purple-800 rounded-md p-2 text-white disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Próxima
           </button>

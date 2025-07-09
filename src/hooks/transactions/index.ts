@@ -2,7 +2,7 @@ import {
   createTransaction,
   getTransactions,
   deleteTransaction,
-  uptadeTransaction,
+  updateTransaction,
 } from "@/services/transactions";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ITransactionResponse } from "@/types/transaction";
@@ -24,6 +24,7 @@ const ListAll = (skip = 0, take = 10) => {
   return useQuery<ITransactionResponse>({
     queryKey: [QUERY_KEY, skip, take],
     queryFn: getTransactions,
+    placeholderData: (previousData) => previousData,
   });
 };
 
@@ -31,7 +32,7 @@ const Update = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: uptadeTransaction,
+    mutationFn: updateTransaction,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
     },
