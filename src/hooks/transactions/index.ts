@@ -1,25 +1,57 @@
-import { createTransaction, getTransactions } from "@/services/transactions"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  createTransaction,
+  getTransactions,
+  deleteTransaction,
+  uptadeTransaction,
+} from "@/services/transactions";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ITransactionResponse } from "@/types/transaction";
 
-const QUERY_KEY = 'qkTransaction'
+const QUERY_KEY = "qkTransaction";
 
 const Create = () => {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: createTransaction,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] })
-    }
-  })
-}
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+    },
+  });
+};
 
-const ListAll = () => {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: getTransactions})
-}
+const ListAll = (skip = 0, take = 10) => {
+  return useQuery<ITransactionResponse>({
+    queryKey: [QUERY_KEY, skip, take],
+    queryFn: getTransactions,
+  });
+};
+
+const Update = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: uptadeTransaction,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+    },
+  });
+};
+
+const Delete = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteTransaction,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+    },
+  });
+};
 
 export const useTransaction = {
-    Create,
-    ListAll,
-}
-
+  Create,
+  ListAll,
+  Delete,
+  Update,
+};
